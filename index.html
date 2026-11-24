@@ -1,0 +1,742 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>English XI Quest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Figtree:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: one centered column; home -> stage map -> question screen with sticky status bar -> result card. */
+:root{
+  --bg:#f1f4ef; --surface:#ffffff; --fg:#14302b; --muted:#566a64; --line:#d3dcd6;
+  --accent:#0b6b5b; --accent-ink:#ffffff; --accent-soft:#dcefe9;
+  --gold:#b97d10; --gold-soft:#f7e9c8;
+  --good:#1b7f48; --good-soft:#dff3e6; --bad:#b0342c; --bad-soft:#f9dfdc;
+  --display:'Bricolage Grotesque',system-ui,sans-serif; --body:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1917; --surface:#13261f; --fg:#e4efe9; --muted:#9bb2aa; --line:#2a403a;
+  --accent:#4cc2a8; --accent-ink:#05211b; --accent-soft:#163a33;
+  --gold:#e0a93b; --gold-soft:#3a2f12; --good:#55d08a; --good-soft:#153a26; --bad:#ff8b80; --bad-soft:#44201d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1917; --surface:#13261f; --fg:#e4efe9; --muted:#9bb2aa; --line:#2a403a;
+  --accent:#4cc2a8; --accent-ink:#05211b; --accent-soft:#163a33;
+  --gold:#e0a93b; --gold-soft:#3a2f12; --good:#55d08a; --good-soft:#153a26; --bad:#ff8b80; --bad-soft:#44201d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.5;margin:0;
+  padding-block:0 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:760px;margin:0 auto}
+.hero{padding:40px 0 8px;display:grid;gap:14px;justify-items:start}
+.hero svg{width:64px;height:64px;color:var(--accent)}
+.hero h1{font-size:clamp(2.1rem,7vw,3.2rem);letter-spacing:-.02em}
+.hero p{margin:0;color:var(--muted);max-width:56ch}
+.eyebrow{font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+.stack{display:grid;gap:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label.f{display:grid;gap:6px;font-weight:600;font-size:.92rem}
+input[type=text],input[type=number],select,textarea{background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+textarea{min-height:140px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer}
+.btn.alt{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.sm{padding:7px 12px;font-size:.88rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:.94rem}
+.chk input{margin-top:4px;width:18px;height:18px;accent-color:var(--accent)}
+.note{font-size:.88rem;color:var(--muted)}
+/* status bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.bar .row{justify-content:space-between}
+.stat{display:flex;gap:14px;font-size:.88rem;font-weight:600;font-variant-numeric:tabular-nums}
+.stat span b{font-family:var(--display);font-size:1.05rem}
+.prog{height:6px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:8px}
+.prog i{display:block;height:100%;background:var(--accent);transition:width .3s}
+/* map */
+.stages{display:grid;gap:12px;margin-top:18px}
+.stage{display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:center}
+.num{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:800;background:var(--accent-soft);color:var(--accent)}
+.stage.done .num{background:var(--accent);color:var(--accent-ink)}
+.stage h3{font-size:1.1rem}
+.stage .meta{font-size:.85rem;color:var(--muted)}
+.stars{color:var(--gold);letter-spacing:2px;font-size:.95rem}
+@media (max-width:520px){.stage{grid-template-columns:44px 1fr}.stage .btn{grid-column:1/-1}}
+/* question */
+.qhead{display:flex;gap:10px;align-items:center;margin:18px 0 8px}
+.qn{font-family:var(--display);font-weight:800;background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:2px 10px;font-size:1.05rem}
+.pts{font-size:.82rem;color:var(--muted)}
+.ins{font-style:italic;color:var(--muted);margin:0 0 8px;font-size:.95rem}
+.q{font-size:1.1rem;margin:0 0 14px}
+.q u{text-decoration-thickness:2px;text-underline-offset:3px}
+.mk{font-size:.68rem;vertical-align:sub;color:var(--gold);margin-left:1px}
+.passage{border-left:4px solid var(--gold);background:var(--surface);border-radius:0 12px 12px 0;padding:14px 16px;margin:0 0 16px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.passage h3{font-size:1.05rem;margin-bottom:8px}
+.passage p{margin:0 0 9px;max-width:68ch}
+.passage p:last-child{margin:0}
+.passage .pl{font-weight:800;color:var(--accent);margin-right:6px}
+.opts{display:grid;gap:9px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt .ltr{flex:none;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:800;font-size:.85rem}
+.opt.ok{background:var(--good-soft);border-color:var(--good)}
+.opt.no{background:var(--bad-soft);border-color:var(--bad)}
+.opt.gone{opacity:.28}
+.opts.three{grid-template-columns:repeat(3,1fr)}
+@media (max-width:520px){.opts.three{grid-template-columns:1fr}}
+.fb{margin-top:16px;border-radius:12px;padding:14px 16px}
+.fb.good{background:var(--good-soft);border:1px solid var(--good)}
+.fb.bad{background:var(--bad-soft);border:1px solid var(--bad)}
+.fb.mid{background:var(--gold-soft);border:1px solid var(--gold)}
+.fb b.v{font-family:var(--display);font-size:1.05rem}
+.fb ul{margin:8px 0 0;padding-left:20px}
+.fb li{margin:3px 0}
+.life{background:none;border:1.5px dashed var(--gold);color:var(--gold);border-radius:20px;padding:3px 12px;font-weight:700;font-size:.82rem;cursor:pointer}
+.life:disabled{opacity:.4;cursor:not-allowed}
+/* listening */
+.listen{border:1.5px solid var(--accent);border-radius:14px;padding:16px;background:var(--surface);margin-bottom:16px;display:grid;gap:12px}
+.listen h3{font-size:1.05rem}
+.pulse{width:44px;height:44px;border-radius:50%;background:var(--accent-soft);display:grid;place-items:center;position:relative;flex:none}
+.pulse::before,.pulse::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);opacity:0}
+.listen.on .pulse::before{animation:ring 1.6s infinite}
+.listen.on .pulse::after{animation:ring 1.6s .8s infinite}
+@keyframes ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.9);opacity:0}}
+@media (prefers-reduced-motion:reduce){.listen.on .pulse::before,.listen.on .pulse::after{animation:none;opacity:.5}}
+.pulse svg{width:22px;height:22px;color:var(--accent)}
+.listen select{width:auto}
+.trans{background:var(--bg);border-radius:10px;padding:12px 14px;font-size:.94rem}
+.trans p{margin:0 0 6px}
+.trans b{color:var(--accent)}
+details summary{cursor:pointer;font-weight:600;font-size:.9rem;color:var(--accent)}
+/* forms */
+.items{display:grid;gap:12px}
+.it{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+.it input[type=text],.it input[type=number]{width:auto;flex:1 1 150px;max-width:260px}
+.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl td,.tbl th{border:1px solid var(--line);padding:8px 10px;text-align:left}
+.tbl th{background:var(--accent-soft);color:var(--accent)}
+.tblwrap{overflow-x:auto}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;text-align:left}
+.chip.used{opacity:.35}
+.slots{display:grid;gap:6px;margin:10px 0}
+.slot{display:flex;gap:10px;align-items:center;min-height:42px;border:1.5px dashed var(--line);border-radius:10px;padding:6px 10px}
+.slot b{color:var(--gold);font-family:var(--display)}
+.res.ok{color:var(--good);font-weight:700}.res.no{color:var(--bad);font-weight:700}
+.bigscore{font-family:var(--display);font-weight:800;font-size:clamp(3rem,14vw,5rem);color:var(--accent);line-height:1}
+.badges{display:flex;flex-wrap:wrap;gap:8px}
+.badge{background:var(--gold-soft);color:var(--gold);border-radius:20px;padding:4px 12px;font-weight:700;font-size:.85rem}
+.sel{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+.tm.warn{color:var(--bad)}
+.qdiv{font-family:var(--display);font-weight:700;font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--gold);border-top:1px solid var(--line);padding-top:12px;margin:18px 0 10px}
+.rv{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.rv p{margin:4px 0}.rv ul{margin:6px 0 0;padding-left:18px}.rv li{margin:4px 0}
+</style>
+
+<div class="wrap" id="app"></div>
+
+<script>
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const norm=t=>String(t||'').toLowerCase().replace(/[’‘`]/g,"'").replace(/\s+/g,' ').trim();
+const num=v=>{const d=String(v||'').replace(/[^\d]/g,'');return d?parseInt(d,10):NaN};
+const rp=n=>'Rp'+n.toLocaleString('id-ID');
+const LET='ABCDE';
+
+/* ---------- listening scripts (S1,S2 male voices; S3,S4 female voices) ---------- */
+const SCRIPTS={
+ s1:{title:'Script 1',range:'Soal 1–2',g:'m',spk:{A:'Hamzah',B:'Irfan'},lines:[
+  ['A',"Hi, Irfan! I haven't seen you since the holidays. How's the new school year going?"],
+  ['B',"Pretty well, actually. I've joined the robotics club, and we've just started building a small robot that waters the plants around the school mosque."],
+  ['A',"Really? I didn't know you liked programming."],
+  ['B',"I don't, to be honest. I've never written a single line of code. I'm on the design team. I've drawn two plans so far, but I haven't finished the final one yet."],
+  ['A',"Who's leading the club?"],
+  ['B',"Mr. Salim. He wants every team member to suggest ideas. I know I want a solar-powered design, but I don't have all the details yet."],
+  ['A',"I've always loved building things. Could I visit a meeting?"],
+  ['B',"Sure! We meet every Wednesday. Actually, we need someone who can translate a few lines into Arabic for our competition poster. Do you speak it?"],
+  ['A',"I've been studying it at my Islamic boarding school since I was ten. I wouldn't say I'm an expert, but I understand most of what I read."],
+  ['B',"Perfect. I'll tell Mr. Salim."]]},
+ s2:{title:'Script 2',range:'Soal 3–4',g:'m',spk:{A:'Reporter',B:'Mr. Hasan'},lines:[
+  ['A',"Mr. Hasan, thank you for talking to us. Could you tell us what happened that afternoon?"],
+  ['B',"Of course. I had been checking the hiking trail since two o'clock when the rain started. By the time I heard the whistle, the group of students had already walked far from the main path."],
+  ['A',"How many students were there?"],
+  ['B',"Six students from a local school. They had gone up to see the waterfall, and none of them had noticed that the river was rising."],
+  ['A',"What did you do?"],
+  ['B',"Without thinking twice, I ran toward the sound. I'd been worried about my own flashlight all afternoon because it had stopped working twice, but luckily it worked this time."],
+  ['A',"Were the students hurt?"],
+  ['B',"Only frightened. One boy had been shivering for an hour, but he calmed down when I gave him my jacket. Honestly, I'm no hero. Anyone would have done the same."],
+  ['A',"Many people disagree with you."]]},
+ s3:{title:'Script 3',range:'Soal 5–6',g:'f',spk:{A:'Aisyah',B:'Nadia'},lines:[
+  ['A',"Nadia, have you finished the banners for Charity Week?"],
+  ['B',"Almost. I've been working on them since Monday, and I've painted about fifteen so far. I hung the first ones outside the canteen yesterday."],
+  ['A',"Great. Did anyone from Class 11 sign up for the archery demonstration?"],
+  ['B',"Yes, they signed up last week. They've been practising every afternoon since then. They've already given two demonstrations for the teachers, and Mr. Rahmat was very impressed."],
+  ['A',"And what about the coupon sales for the bazaar?"],
+  ['B',"That's the problem. We've sold only eighteen coupons so far, and we expected at least a hundred and fifty by now. I've been calling sponsors all morning, but nobody has replied yet."],
+  ['A',"All things considered, we're doing well except for the coupons. Maybe I could post about it on the school's social media account."],
+  ['B',"Good idea. In brief, we need more visitors."]]},
+ s4:{title:'Script 4',range:'Soal 7–8',g:'f',spk:{A:'Salsa',B:'Dewi'},lines:[
+  ['A',"Dewi, are you joining the class trip to Malang? It costs two million, seven hundred thousand rupiah."],
+  ['B',"I'd love to, but it's a lot. I've saved four hundred and fifty thousand rupiah so far."],
+  ['A',"When do you have to pay?"],
+  ['B',"The final deadline is five months from now. I earn three hundred thousand rupiah a month from selling homemade cakes, and I'll put all of it aside."],
+  ['A',"So by then you'll have saved one million, five hundred thousand rupiah more."],
+  ['B',"Right. I'll still be short, but my mother has promised to cover the difference."],
+  ['A',"Good. You don't have to pay everything at once, by the way. The school lets you pay in two parts, but you must register before the end of this month, or you'll lose your place."],
+  ['B',"Thanks for the warning. I mustn't forget that. And I needn't bring the permission letter until the week of the trip."]]}
+};
+
+/* ---------- reading passages ---------- */
+const PASS={
+ podium:{t:'Behind the Podium',p:[
+  ["","Hasan Maulana has always been known as the quiet boy in his class. He has belonged to the school debate club since Year 10, but until recently he only worked behind the scenes. “I know I'm shy,” he admits. “I prefer researching arguments to presenting them.”"],
+  ["","Last spring, however, something changed. His coach asked him to deliver a three-minute speech at a regional competition. Hasan had never spoken in public before, so at first he felt overwhelmed. Since then he has watched dozens of speeches by Indonesian scholars and has been taking notes on how speakers explain ideas in simple words."],
+  ["","Now he is practising with eight classmates every weekend. His speech, about a boy who is afraid of speaking up, hasn't been finished yet, but Hasan believes it is the most honest work he has ever done. “I don't need to be loud,” he says. “I just need to be clear about what I want to say.”"]]},
+ spring:{t:'The Hidden Spring',p:[
+  ["","Dr. Maryam Hakim had been studying the rainforest plants of Kalimantan for eight years when she first heard about the spring. Local villagers had been telling stories about it for generations, but no scientist had ever reached it. Bravely, Maryam decided to lead a small team to find it."],
+  ["","The expedition did not begin well. By the time the team reached the foot of the mountain, heavy rain had been falling for three days, and their truck had broken down twice. Without warning, the rain stopped on their fourth morning, and the team finally entered the forest. Deep inside, they discovered a clear spring surrounded by rare ferns that had grown undisturbed for centuries."],
+  ["","Maryam later said that the trip had taught her patience. “We had planned everything for months,” she explained, “but nature had other plans. The delay was frustrating, and yet it was the reason we found the spring at the best moment: the river had become safe to cross.”"]]},
+ fair:{t:'The Al-Hikmah Book Fair',p:[
+  ["A","The Al-Hikmah Book Fair began in 2012, when a group of local teachers organised a one-day exhibition in a mosque hall. Only about 150 people attended. Since then, the fair has grown into a week-long event, and last year it welcomed more than 12,000 visitors."],
+  ["B","Much of this growth is thanks to volunteers. For the past four months, around forty students have been building stalls from bamboo, and they have already finished the main one. Last Saturday, a group of calligraphy artists visited the site and inspected the new stall, and they praised its design."],
+  ["C","The fair has not been without problems. Last year, heavy rain forced the organisers to cancel the final day, and many ticket holders asked for refunds. This year, the committee has been negotiating with a local company to build a large tent. All things considered, however, the fair has done more good than harm: local families have earned extra income, and young writers have gained a platform for their talent."]]},
+ saving:{t:'Zahra’s Saving Plan',p:[
+  ["A","When Zahra started university, her parents told her that she would have to manage her own allowance of Rp2,000,000 a month. At first she spent most of it on food delivery and online shopping, and by the twentieth of every month she had run out of money."],
+  ["B","After three months, Zahra decided to change. She didn't have to give up everything she enjoyed, but she needed to separate her essential costs from her wants. Rent (Rp1,000,000), transport (Rp300,000), and groceries (Rp450,000) are bills she must pay every month. That leaves Rp250,000 for everything else."],
+  ["C","Zahra now sets aside Rp100,000 of that every month for a study tour to Malaysia that will cost Rp2,500,000. If she keeps this routine for twelve months, she will have saved Rp1,200,000, and she will have been saving for a whole year. She admits that this is still not enough, so she plans to sell some of her old textbooks."],
+  ["D","Her advice to other students is simple: “You don't need a complicated app. You just need to write down every expense, and you mustn't spend your savings on small treats.”"]]}
+};
+
+/* ---------- questions ---------- */
+const QS={};
+/* mc: o[c] is correct. fixed => keep order */
+const M=(n,st,q,o,exp,x={})=>{QS[n]=Object.assign({n,st,t:'mc',q,o,c:x.c||0,exp,max:x.max||2},x)};
+const GI='Choose the best option to complete the sentence.', SY='Choose the word or phrase closest in meaning to the word in bold.', WC='Choose the best word to complete the sentence.', UL='Choose the underlined part that must be corrected.';
+const TFNG=['TRUE','FALSE','NOT GIVEN'];
+
+/* Stage 0: listening */
+M(1,0,"What is the conversation mainly about?",[
+ "Irfan's work on the club's robot and a way Hamzah might help.","Hamzah's plan to join the robotics club as a programmer.","Mr. Salim's decision to cancel the competition.","An Arabic course that Irfan wants to take.","Hamzah's experience of building a robot for the mosque."],
+ "Irfan bercerita tentang proyek robot klubnya, lalu meminta Hamzah membantu menerjemahkan ke bahasa Arab.",{l:'s1'});
+M(2,0,"Which sentence about the conversation is both true and grammatically correct?",[
+ "Irfan has drawn two plans, but he hasn't finished the final one yet.","Hamzah is studying Arabic since he was ten.","Irfan has been programming the robot since September.","Mr. Salim has already finished the design.","Irfan has joined the robotics club last month."],
+ "Irfan: “I've drawn two plans so far, but I haven't finished the final one yet.” Pilihan lain salah fakta, atau salah tata bahasa (since + present continuous; present perfect dengan waktu selesai “last month”).",{l:'s1'});
+M(3,0,"Why were the students in danger?",[
+ "They had not noticed that the river was rising.","Their flashlight had stopped working twice.","They had wanted to follow Mr. Hasan.","The rangers had closed the trail.","Mr. Hasan had forgotten to warn them."],
+ "“None of them had noticed that the river was rising.” Senter yang mati adalah milik Mr. Hasan, bukan para siswa.",{l:'s2'});
+M(4,0,"Which sentence describes the order of events correctly?",[
+ "Before Mr. Hasan heard the whistle, the students had already walked far from the main path.","After Mr. Hasan had run toward the sound, the students had gone up to see the waterfall.","Mr. Hasan had given the boy his jacket before the boy had started shivering.","The rain had started before Mr. Hasan had begun checking the trail.","Mr. Hasan's flashlight had stopped working twice after he ran toward the students."],
+ "Past perfect menandai kejadian yang lebih dulu: para siswa sudah berjalan jauh sebelum Mr. Hasan mendengar peluit.",{l:'s2'});
+M(5,0,"What is the main problem the committee faces?",[
+ "Coupon sales are much lower than expected.","The banners have not been hung yet.","The archery team has stopped practising.","The sponsors have refused to help.","Mr. Rahmat did not enjoy the demonstration."],
+ "Baru 18 kupon terjual padahal target minimal 150. Sponsor belum membalas, bukan menolak.",{l:'s3'});
+M(6,0,"Which sentence about the conversation is correct?",[
+ "Nadia has been working on the banners since Monday.","Nadia has hung the first banners yesterday.","Class 11 has signed up for the archery demonstration last week.","The committee has sold a hundred coupons so far.","Nadia has been calling sponsors since Monday."],
+ "Banner dikerjakan sejak Senin (since Monday). “Yesterday” dan “last week” butuh simple past; menelepon sponsor hanya sepanjang pagi (all morning).",{l:'s3'});
+M(7,0,"According to Salsa, which statement about the payment is correct?",[
+ "Dewi needn't pay everything at once, but she must register before the end of the month.","Dewi must pay the whole amount on the day of the trip.","Dewi mustn't register until the final deadline.","Dewi doesn't have to register if her mother pays the difference.","Dewi mustn't bring the permission letter before the week of the trip."],
+ "Pembayaran boleh dua tahap (don't have to pay at once), tetapi pendaftaran wajib sebelum akhir bulan (must register).",{l:'s4'});
+M(8,0,"By the final deadline, how much will Dewi have saved by herself, including the money she has now?",[
+ "Rp1.950.000","Rp1.500.000","Rp2.700.000","Rp2.250.000","Rp750.000"],
+ "Rp450.000 (sekarang) + 5 bulan × Rp300.000 = Rp450.000 + Rp1.500.000 = Rp1.950.000.",{l:'s4'});
+
+/* Stage 1: vocabulary */
+M(9,1,"Faisal is a <b>diligent</b> student; he finishes his homework every night, even when he is tired.",["Hardworking","Forgetful","Impatient","Selfish","Reserved"],"Diligent = rajin, sungguh-sungguh. Sinonimnya: hardworking.",{ins:SY});
+M(10,1,"The volunteers had to <b>tolerate</b> the scorching heat for three days.",["Put up with","Run out of","Look forward to","Give up on","Take care of"],"Tolerate = menahan/menerima sesuatu yang tidak nyaman = put up with.",{ins:SY});
+M(11,1,"Students must ______ many challenges, such as limited time and difficult subjects, before they reach their goals.",["Overcome","Overlook","Overtake","Overflow","Overreact"],"Overcome = mengatasi (tantangan). Overlook = mengabaikan; overtake = menyalip.",{ins:WC});
+M(12,1,"The region has <b>abundant</b> rainfall, so farmers can plant rice twice a year.",["Plentiful","Scarce","Harmful","Occasional","Unpleasant"],"Abundant = melimpah = plentiful. Scarce justru kebalikannya.",{ins:SY});
+M(13,1,"Although Zayd is naturally ______, he forced himself to speak in front of the whole school.",["Timid","Outgoing","Talkative","Generous","Stubborn"],"“Although … forced himself” menandakan kontras: sifat aslinya pemalu (timid).",{ins:WC});
+M(14,1,"The committee decided to ______ the sports day because of heavy rain, so it will now be held next Saturday.",["Postpone","Announce","Cancel","Supervise","Prepare"],"Acaranya tetap ada, hanya diundur ke Sabtu depan = postpone (bukan cancel).",{ins:WC});
+M(15,1,"Faris <b>can't afford</b> a new bicycle right now, so he is still using his old one.",["doesn't have enough money for","isn't able to find","doesn't need","has forgotten to buy","isn't allowed to ride"],"Can't afford = tidak punya cukup uang untuk membeli.",{ins:'Choose the word or phrase closest in meaning to the phrase in bold.'});
+M(16,1,"Because she wants to donate to an orphanage fund, Alya has decided to ______ her spending on snacks and online shopping.",["cut down on","look forward to","run out of","catch up with","find out about"],"Cut down on = mengurangi.",{ins:'Choose the best phrase to complete the sentence.'});
+
+/* Stage 2: reading */
+M(17,2,"What is the main idea of the passage?",["Hasan is slowly gaining confidence by preparing his first speech.","Hasan has stopped working behind the scenes because he is shy.","Hasan has won a regional competition with his first speech.","Hasan prefers presenting to researching, so he gives the main speech in his club.","Hasan wants to give up debating because it is too difficult."],"Hasan yang pemalu perlahan percaya diri lewat persiapan pidato pertamanya. Ia belum menang apa pun.",{p:'podium'});
+M(18,2,"Read the sentence from the passage: “Hasan believes it is the most honest work he has ever done.” Why does the writer use “believes” instead of “is believing”?",["“Believe” is a stative verb, so it is normally not used in the continuous form.","“Believe” is an irregular verb, so it cannot take -ing.","The action started in the past and is now finished, so the present simple is needed.","Continuous forms can only be used with “we” and “they”.","“Believes” is used in the present simple because the writer is describing a habit that happens every day."],"Believe menyatakan keadaan mental (stative verb), jadi biasanya tidak dipakai dalam bentuk continuous.",{p:'podium'});
+M(19,2,"What is the main idea of the passage?",["A scientist led an expedition to a hidden spring and succeeded despite early difficulties.","Careful planning always protects explorers from delays and bad weather.","Local villagers guided a scientist to a spring and explored it with her.","A truck company failed to deliver a promised trip.","A scientist cancelled her expedition because the rain lasted too long."],"Ekspedisi Maryam berhasil menemukan mata air meski awalnya penuh kendala.",{p:'spring'});
+M(20,2,"Which statement about the order of events is correct?",["Heavy rain had been falling for three days before the team reached the foot of the mountain.","The rain had stopped before the team reached the mountain.","The team had entered the forest before their truck broke down.","Other scientists had visited the spring before Maryam heard about it.","Maryam had heard about the spring before she started studying rainforest plants."],"“By the time the team reached the foot of the mountain, heavy rain had been falling for three days.”",{p:'spring'});
+M(21,2,"Which statement best summarizes the passage?",["The fair has grown from a small exhibition into a major event, and its benefits outweigh its problems.","The fair has been cancelled because of the heavy rain.","Volunteers are unhappy about building the stalls.","The fair has grown into a major event, but it does more harm than good.","The fair has grown mainly because the committee has built a large tent."],"Ringkasan terbaik mencakup pertumbuhan acara dan kesimpulan penulis: manfaat lebih besar daripada masalah.",{p:'fair'});
+M(22,2,"Which sentence is both true according to the passage and grammatically correct?",["Around forty students have been building stalls for four months.","The fair has begun in 2012.","The organisers have cancelled the final day last year.","A group of calligraphy artists has visited the site since last Saturday.","The students have finished all the stalls, and the committee has built the large tent."],"Teks B: “For the past four months, around forty students have been building stalls.” Pilihan lain salah tata bahasa atau tidak sesuai teks.",{p:'fair'});
+M(23,2,"What is the passage mainly about?",["How a student learned to manage her allowance and save for a goal.","Why universities should give students bigger allowances.","How to cook cheap meals on a budget.","Why online shopping is better than saving.","How a student gave up everything she enjoyed in order to save money."],"Zahra belajar mengatur uang saku dan menabung untuk tujuan tertentu. Ia tidak meninggalkan semua kesenangannya.",{p:'saving'});
+M(24,2,"If Zahra keeps her routine for twelve months, how much more will she still need for the study tour?",["Rp1.300.000","Rp1.200.000","Rp2.500.000","Rp1.500.000","Rp3.700.000"],"12 × Rp100.000 = Rp1.200.000. Biaya Rp2.500.000 − Rp1.200.000 = Rp1.300.000.",{p:'saving'});
+
+/* Stage 3: grammar */
+M(25,3,"My teacher ______ at this school for twelve years, and he ______ his students very much.",["has been teaching; loves","teaches; is loving","taught; has loved","has taught; is loving","has been teaching; has been loving"],"“For twelve years” → present perfect (continuous). “Love” adalah stative verb → simple present.",{ins:GI});
+M(26,3,"Rafi <u>has been knowing</u><b class=mk>A</b> many classmates since <u>he moved</u><b class=mk>B</b> to Bandung, and he <u>has joined</u><b class=mk>C</b> three clubs, <u>has been learning</u><b class=mk>D</b> calligraphy for six months, and <u>has competed</u><b class=mk>E</b> twice at school.",["has been knowing","he moved","has joined","has been learning","has competed"],"Know adalah stative verb, tidak dipakai dalam continuous. Seharusnya: has known.",{ins:UL,fixed:true});
+M(27,3,"By the time the ambulance ______ the village, the villagers ______ the injured driver for almost an hour.",["arrived; had been helping","had arrived; was helping","arrives; has helped","has arrived; had been helping","arrived; has been helping"],"“By the time” + simple past; aksi yang berlangsung sebelumnya → past perfect continuous (had been helping).",{ins:GI});
+M(28,3,"After the volunteers <u>had loaded</u><b class=mk>A</b> the trucks at dawn, they <u>drove</u><b class=mk>B</b> steadily, and they <u>had been driving</u><b class=mk>C</b> for six hours when a heavy flood <u>covered</u><b class=mk>D</b> the road. They finally <u>had been reaching</u><b class=mk>E</b> the village after midnight.",["had loaded","drove","had been driving","covered","had been reaching"],"Reach adalah aksi sesaat, tidak cocok dengan continuous. Seharusnya: reached.",{ins:UL,fixed:true,c:4});
+M(29,3,"The school's book fair ______ every November since 2017, and last year's fair ______ more than 2,500 visitors.",["has taken place; attracted","took place; has attracted","has been taking place; has attracted","takes place; has attracted","has taken place; has attracted"],"“Since 2017” → present perfect. “Last year's fair” adalah waktu selesai → simple past (attracted).",{ins:GI});
+M(30,3,"Weekend book bazaars have become more popular in many cities. Sellers earn extra income, visitors enjoy a wide variety of books, and young readers learn about different cultures. However, residents near the sites often complain about traffic and noise.<br><br><b>Which sentence best concludes the paragraph?</b>",["All things considered, these bazaars are worth continuing as long as the organisers manage traffic and noise properly.","By the way, many sellers open early in the morning.","In brief, book bazaars have become popular in many cities.","All in all, these bazaars are so popular that the complaints of the residents do not matter.","In the final analysis, the bazaars cause so much traffic and noise that cities should stop holding them."],"Kesimpulan yang seimbang mempertimbangkan manfaat dan keluhan. Opsi lain hanya mengulang, keluar topik, atau berat sebelah.",{ins:'Read the paragraph, then choose the best concluding sentence.'});
+M(31,3,"By the time Yusuf graduates in 2029, he ______ as a tutor for three years, and he ______ enough money to buy a motorbike.",["will have been tutoring; will have saved","has been tutoring; will save","will be tutoring; has saved","is tutoring; will have been saving","will be tutoring; will have saved"],"“By the time … 2029” + durasi “for three years” → future perfect continuous; hasil tabungan pada saat itu → future perfect.",{ins:GI});
+M(32,3,"Hafiz <u>doesn't have to pay</u><b class=mk>A</b> the fee today because the school <u>lets</u><b class=mk>B</b> students pay next week, but he <u>must to register</u><b class=mk>C</b> before Friday, and he <u>needs to bring</u><b class=mk>D</b> his student card when he <u>comes</u><b class=mk>E</b> to the office.",["doesn't have to pay","lets","must to register","needs to bring","comes"],"Setelah modal must dipakai bare infinitive tanpa “to”. Seharusnya: must register.",{ins:UL,fixed:true,c:2});
+
+/* Stage 4: matching */
+M(33,4,"Hasan prefers researching arguments to presenting them.",TFNG,"Teks: “I prefer researching arguments to presenting them.”",{p:'podium',fixed:true,c:0,max:1,ins:'Write TRUE if the statement agrees with the passage, FALSE if it contradicts the passage, or NOT GIVEN if the passage does not give this information.'});
+M(34,4,"Hasan gave several speeches before the competition.",TFNG,"Teks: “Hasan had never spoken in public before.” → bertentangan.",{p:'podium',fixed:true,c:1,max:1,ins:'TRUE, FALSE, or NOT GIVEN?'});
+M(35,4,"Hasan's classmates think he is the best speaker in the school.",TFNG,"Teks tidak menyebut pendapat teman sekelas tentang Hasan.",{p:'podium',fixed:true,c:2,max:1,ins:'TRUE, FALSE, or NOT GIVEN?'});
+M(36,4,"Hasan has finished writing his speech.",TFNG,"Teks: “His speech … hasn't been finished yet.” → bertentangan.",{p:'podium',fixed:true,c:1,max:1,ins:'TRUE, FALSE, or NOT GIVEN?'});
+const PM='Which paragraph (A, B, or C) of the text contains the following information? You may use any letter more than once.';
+M(37,4,"The number of people at the first fair.",['A','B','C'],"Paragraf A: “Only about 150 people attended.”",{p:'fair',fixed:true,c:0,max:1,ins:PM});
+M(38,4,"Work that students have been doing recently.",['A','B','C'],"Paragraf B: siswa membangun stan dari bambu selama empat bulan terakhir.",{p:'fair',fixed:true,c:1,max:1,ins:PM});
+M(39,4,"A problem caused by bad weather.",['A','B','C'],"Paragraf C: hujan deras memaksa panitia membatalkan malam terakhir.",{p:'fair',fixed:true,c:2,max:1,ins:PM});
+M(40,4,"The writer's overall opinion of the fair.",['A','B','C'],"Paragraf C: “All things considered … the fair has done more good than harm.”",{p:'fair',fixed:true,c:2,max:1,ins:PM});
+
+/* Stage 5: short answer */
+QS[41]={n:41,st:5,t:'fill',max:4,p:'spring',ins:'Complete the sentences with the correct form of the verb in brackets.',
+ items:[
+  {s:"1. Before the expedition, no scientist ___ (reach) the spring.",a:['had reached'],m:'had reached'},
+  {s:"2. Maryam ___ (study) rainforest plants for eight years when she heard about the spring.",a:['had been studying'],m:'had been studying'},
+  {s:"3. When the team reached the foot of the mountain, heavy rain ___ (fall) for three days.",a:['had been falling'],m:'had been falling'},
+  {s:"4. By the time the team entered the forest, the rain ___ (stop) completely.",a:['had stopped'],m:'had stopped'}]};
+QS[42]={n:42,st:5,t:'table',max:4,p:'saving',ins:'Complete the table using information from the text. Write ONE number (in rupiah) for each gap. Gap 3 needs a calculation.',
+ rows:[['Monthly allowance','Rp2.000.000'],['Rent',1000000],['Transport',300000],['Groceries','Rp450.000'],['Total essential costs',1750000],['Monthly savings for the trip',100000]],
+ exp:"Rent Rp1.000.000; transport Rp300.000; total = 1.000.000 + 300.000 + 450.000 = Rp1.750.000; tabungan bulanan Rp100.000."};
+QS[43]={n:43,st:5,t:'fix',max:5,ins:'The paragraph below contains FIVE errors related to the present perfect and action/stative verbs. Rewrite each wrong phrase correctly.',
+ text:"Salim is a new student from Aceh. He has lived in Bandung <u>since two months</u><sup>1</sup>, and he <u>is not knowing</u><sup>2</sup> many people yet. <u>Yesterday he has joined</u><sup>3</sup> the science club, and now he <u>is wanting</u><sup>4</sup> to make friends there. He <u>never gives</u><sup>5</sup> a presentation in English before, so he feels nervous.",
+ items:[
+  {re:/\bfor (the last |the past )?(two|2) months\b/,m:'for two months',r:'Durasi memakai for; since dipakai untuk titik waktu.'},
+  {re:/\b(doesn't|does not) know\b/,m:"doesn't know",r:'Know = stative verb, tidak dipakai dalam continuous.'},
+  {re:/\bjoined\b/,no:/\bhas joined\b/,m:'Yesterday he joined',r:'Finished time (yesterday) → simple past.'},
+  {re:/\bwants\b/,no:/\bis wanting\b/,m:'wants',r:'Want = stative verb.'},
+  {re:/\b(has never given|hasn't given|has not given|has never done)\b/,m:'has never given',r:'“… before” menunjukkan pengalaman sampai sekarang → present perfect.'}]};
+QS[44]={n:44,st:5,t:'order',max:5,ins:'Below are five events from a river rescue, listed in random order. First, put them in chronological order. Then write a narrative paragraph of 5–6 sentences that uses at least two past perfect forms, one past perfect continuous form, and two adverb sentence starters (e.g. Suddenly, Bravely, Without warning).',
+ ev:{A:"The boy ignored the warning sign and crossed the river.",B:"Farid trained as a volunteer rescuer for three years.",C:"Farid pulled the boy safely to the bank.",D:"The boy was trapped on a rock for thirty minutes until he became too cold.",E:"Villagers put up a warning sign about the strong current."},
+ ans:['B','E','A','D','C']};
+QS[45]={n:45,st:6,t:'boss',max:10,ins:'Read the data, then complete tasks (a) and (b).'};
+
+/* ---------- stages ---------- */
+const R=(a,b)=>Array.from({length:b-a+1},(_,i)=>a+i);
+const STAGES=[
+ {name:'Listening Lab',sub:'4 percakapan, diputar dengan suara',qs:R(1,8)},
+ {name:'Word Power',sub:'Vocabulary dan phrasal verbs',qs:R(9,16)},
+ {name:'Reading Trail',sub:'4 teks bacaan',qs:R(17,24)},
+ {name:'Grammar Arena',sub:'Perfect tenses, modals, error spotting',qs:R(25,32)},
+ {name:'Match Point',sub:'True / False / Not Given dan paragraph matching',qs:R(33,40)},
+ {name:'Short Answer Lab',sub:'Isi, hitung, perbaiki, urutkan',qs:R(41,44)},
+ {name:'Final Boss',sub:'Essay: Fadhil’s Laptop Plan',qs:[45]}
+];
+const stageMax=i=>STAGES[i].qs.reduce((s,n)=>s+QS[n].max,0);
+const stagePts=i=>STAGES[i].qs.reduce((s,n)=>s+(S.res[n]?S.res[n].pts:0),0);
+const stageDone=i=>STAGES[i].qs.every(n=>S.res[n]);
+const starsOf=i=>{const r=stagePts(i)/stageMax(i);return r>=.85?3:r>=.6?2:r>0?1:0};
+const starStr=k=>'★'.repeat(k)+'☆'.repeat(3-k);
+
+/* ---------- state ---------- */
+const S={name:'',limit:false,res:{},lifes:3,streak:0,best:0,usedLife:false,stage:0,pos:0,plays:{}};
+let cur=null;
+
+/* ---------- text-to-speech ---------- */
+const TTS=('speechSynthesis' in window)&&('SpeechSynthesisUtterance' in window);
+const MALE=/\b(david|mark|guy|ryan|george|james|daniel|alex|fred|thomas|oliver|arthur|rishi|aaron|gordon|male|eric|christopher|roger|brian|andrew|liam|william|davis|jason|tony|sam|steffan|ethan|noah|richard|sean|mike|matthew)\b/i;
+const FEMALE=/\b(zira|hazel|susan|samantha|karen|moira|tessa|victoria|fiona|serena|kate|female|jenny|aria|emma|michelle|ana|libby|sonia|amy|joanna|salli|ivy|kendra|kimberly|nicole|olivia|natasha|clara|catherine|allison|ava|nora|heather|sara|linda|jane|ashley|elizabeth|mia|maisie|ada)\b/i;
+let VOICES=[],playTok=0,keep=[];
+function loadVoices(){if(!TTS)return;VOICES=(speechSynthesis.getVoices()||[]).filter(v=>/^en([-_]|$)/i.test(v.lang));}
+if(TTS){loadVoices();try{speechSynthesis.addEventListener('voiceschanged',loadVoices)}catch(e){}}
+const isGB=v=>/^en[-_]GB$/i.test(v.lang),isUS=v=>/^en[-_]US$/i.test(v.lang);
+const findV=re=>VOICES.find(v=>re.test(v.name));
+/* Script 1-2: speaker 1 = Google UK English Male (en-GB), speaker 2 = a different male voice.
+   Script 3-4: speaker 1 = Google UK English Female (en-GB), speaker 2 = Google US English (en-US). */
+function voiceFor(sc,who){
+  if(sc.g==='m'){
+    const mv=v=>MALE.test(v.name)&&!FEMALE.test(v.name);
+    const g=findV(/google uk english male/i);
+    const A=g||VOICES.find(v=>isGB(v)&&mv(v))||VOICES.find(mv)||VOICES.find(isGB)||VOICES[0]||null;
+    const aNat=!!(g||(A&&mv(A)));
+    /* speaker 2: a clearly different male voice (e.g. Microsoft David/Mark/Guy, Daniel, Alex) */
+    let B=VOICES.find(v=>v!==A&&mv(v)&&!/google/i.test(v.name))||VOICES.find(v=>v!==A&&mv(v));
+    let bp=1;
+    if(!B){
+      B=VOICES.find(v=>v!==A&&!/google/i.test(v.name)&&!FEMALE.test(v.name)&&isUS(v))||VOICES.find(v=>v!==A&&!/google (us english|uk english female)/i.test(v.name)&&!FEMALE.test(v.name));
+      bp=0.85;
+    }
+    if(!B){return who==='A'?{v:A,p:aNat?1.05:0.9}:{v:A,p:aNat?0.72:0.65}}
+    return who==='A'?{v:A,p:aNat?1:0.8}:{v:B,p:bp};
+  }
+  const fem=v=>FEMALE.test(v.name)&&!MALE.test(v.name);
+  const uk=findV(/google uk english female/i)||VOICES.find(v=>isGB(v)&&fem(v));
+  const us=findV(/google us english/i)||VOICES.find(v=>isUS(v)&&fem(v));
+  let v=who==='A'?(uk||us):(us||uk);
+  if(!v)v=VOICES.find(fem)||VOICES[0]||null;
+  const same=!uk||!us||uk===us;
+  const base=(uk||us)?1:1.25;
+  return {v,p:same?(who==='A'?base-0.08:base+0.12):base};
+}
+function stopAudio(){playTok++;keep=[];if(TTS){try{speechSynthesis.cancel()}catch(e){}}setPlayUI(false)}
+function setPlayUI(on,label){
+  const box=$('#lbox');if(!box)return;
+  box.classList.toggle('on',on);
+  const pb=$('#pbtn');if(pb)pb.textContent=on?'Berhenti':(cur&&S.plays[cur.q.l]?'Putar ulang':'Putar audio');
+  const st=$('#lstat');if(st)st.textContent=label||(on?'Memutar…':'');
+}
+function playsLeft(id){return S.limit?Math.max(0,2-(S.plays[id]||0)):99}
+function togglePlay(){
+  const id=cur.q.l,sc=SCRIPTS[id];
+  if($('#lbox').classList.contains('on')){stopAudio();return}
+  if(!TTS){$('#lstat').textContent='Browser ini tidak mendukung suara. Gunakan Chrome, Edge, atau Safari terbaru.';return}
+  if(!playsLeft(id))return;
+  S.plays[id]=(S.plays[id]||0)+1;
+  const tok=++playTok;try{speechSynthesis.cancel()}catch(e){}
+  loadVoices();
+  const rate=parseFloat($('#lrate').value)||1;
+  let i=0;
+  const next=()=>{
+    if(tok!==playTok)return;
+    if(i>=sc.lines.length){setPlayUI(false,'Selesai');updatePlays();return}
+    const [who,text]=sc.lines[i++];
+    const u=new SpeechSynthesisUtterance(text);
+    const pick=voiceFor(sc,who);
+    if(pick.v){u.voice=pick.v;u.lang=pick.v.lang}else u.lang='en-GB';
+    u.rate=rate;u.pitch=Math.min(2,Math.max(0.1,pick.p));
+    u.onend=()=>setTimeout(next,380);
+    u.onerror=e=>{if(tok!==playTok)return;if(e&&(e.error==='canceled'||e.error==='interrupted'))return;setPlayUI(false,'Suara gagal diputar. Coba tekan Putar audio lagi.')};
+    keep.push(u);if(keep.length>4)keep.shift();
+    setPlayUI(true,`Memutar · pembicara ${who==='A'?1:2} dari 2 · bagian ${i}/${sc.lines.length}`);
+    speechSynthesis.speak(u);
+  };
+  setPlayUI(true,'Memutar…');updatePlays();next();
+}
+function updatePlays(){
+  const id=cur&&cur.q.l;if(!id)return;
+  const el=$('#lplays');if(el)el.textContent=S.limit?`Sisa putar: ${playsLeft(id)} dari 2`:`Diputar ${S.plays[id]||0}×`;
+  const pb=$('#pbtn');if(pb&&!$('#lbox').classList.contains('on'))pb.disabled=!playsLeft(id);
+}
+
+/* ---------- writing analysis (self-check) ---------- */
+const STOP=new Set(['to','a','an','the','no','some','been','his','her','their','any','my','our','its','enough','it','this','that','many','much','one','two','three','time','fun','lunch','dinner','breakfast']);
+const EXC=new Set(['only','early','family','daily','italy','july','reply','apply','supply','ally','belly','lily','holy','jelly','rely']);
+function analyze(raw){
+  const t=norm(raw),sents=raw.trim().split(/(?<=[.!?])\s+/).filter(s=>s.trim().length>2);
+  let pp=0,m;const re=/\b(?:had|hadn't)\s+(?:(?:already|never|just|not|ever|still)\s+)*([a-z]+)/g;
+  while((m=re.exec(t))){if(!STOP.has(m[1])&&!/ing$/.test(m[1]))pp++}
+  const ppc=(t.match(/\b(?:had|hadn't)\s+(?:(?:already|never|just|not|still)\s+)*been\s+[a-z]+ing\b/g)||[]).length;
+  const start=sents.filter(s=>{const x=norm(s).replace(/^["“'‘]/,'');const mm=x.match(/^(without\s+[a-z]+|([a-z]+ly))\b/);return mm&&!EXC.has(mm[2]||'')}).length;
+  const modals=(t.match(/\b(?:don't have to|doesn't have to|do not have to|does not have to|mustn't|must not|needn't|need not|must|have to|has to|need to|needs to)\b/g)||[]).length;
+  const neg=(t.match(/\b(?:don't have to|doesn't have to|do not have to|does not have to|mustn't|must not|needn't|need not)\b/g)||[]).length;
+  const fp=(t.match(/\b(?:will|won't)\s+(?:(?:not|never|already|definitely|probably)\s+)*have\s+(?!been\b)[a-z]+/g)||[]).length;
+  const fpc=(t.match(/\b(?:will|won't)\s+(?:(?:not|never|already)\s+)*have\s+been\s+[a-z]+ing/g)||[]).length;
+  return {n:sents.length,words:t.split(' ').filter(Boolean).length,pp,ppc,start,modals,neg,fp,fpc};
+}
+const MODEL44="Farid had trained as a volunteer rescuer for three years when the accident happened. Villagers had put up a warning sign about the strong current, but the boy ignored it and crossed the river. Suddenly, the water pulled him toward a rock, and he had been sitting there for thirty minutes when he became too cold to move. Bravely, Farid jumped into the water. Without warning, a wave hit them, but he held the boy tightly. Finally, Farid pulled the boy safely to the bank.";
+const MODEL45="Fadhil has to save about Rp400,000 every month, so he needs to cut Rp150,000. He doesn't have to give up his hobbies completely, but he must reduce them from Rp350,000 to Rp200,000. If he follows this plan, he will save Rp400,000 every month. By the end of the year, he will have saved Rp5,400,000, including the Rp600,000 he has now, and he will have been saving for twelve months. He mustn't spend the laptop fund on anything else.";
+
+/* ---------- timer ---------- */
+const TOTAL_MS=60*60*1000;let tick=null;
+const left=()=>S.deadline?Math.max(0,S.deadline-Date.now()):TOTAL_MS;
+const mmss=ms=>{const s=Math.ceil(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+function startTimer(){S.deadline=Date.now()+TOTAL_MS;S.over=false;clearInterval(tick);tick=setInterval(onTick,1000)}
+function onTick(){
+  const l=left();
+  document.querySelectorAll('.tm').forEach(e=>{e.textContent=mmss(l);e.classList.toggle('warn',l<300000)});
+  if(l<=0)timeUp();
+}
+function timeUp(){
+  clearInterval(tick);S.over=true;
+  try{if(cur&&!cur.done&&['fill','table','fix','order','boss'].includes(cur.q.t))check(true)}catch(e){}
+  result();
+}
+
+/* ---------- screens ---------- */
+const app=$('#app');
+const fmt=n=>Number.isInteger(n)?String(n):n.toFixed(1);
+function passHTML(k){
+  const p=PASS[k];
+  return `<div class="passage"><h3>${esc(p.t)}</h3>${p.p.map(x=>`<p>${x[0]?`<span class="pl">[${x[0]}]</span>`:''}${esc(x[1])}</p>`).join('')}</div>`;
+}
+function scoreTable(){
+  const rows=[
+   ['Listening Lab','8 pilihan ganda','2 / soal',16],
+   ['Word Power','8 pilihan ganda','2 / soal',16],
+   ['Reading Trail','8 pilihan ganda','2 / soal',16],
+   ['Grammar Arena','8 pilihan ganda','2 / soal',16],
+   ['Match Point','8 benar-salah dan matching','1 / soal',8],
+   ['Short Answer Lab','isian (4), tabel (4), perbaiki kalimat (5), urutkan dan menulis (5)','1 / butir',18],
+   ['Final Boss','hitungan (5) dan menulis rencana (5)','1 / butir',10]];
+  return `<div class="tblwrap"><table class="tbl"><tr><th>Stage</th><th>Jenis soal</th><th>Poin</th><th>Total</th></tr>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}<tr><th colspan="3">Skor maksimum</th><th>100</th></tr></table></div>
+  <p class="note" style="margin:10px 0 0">Soal yang lebih sulit dan lebih panjang bernilai lebih besar. Memakai 50:50 membuat poin soal itu menjadi setengah.</p>`;
+}
+function home(){
+  stopAudio();clearInterval(tick);cur=null;S.deadline=null;
+  const best=store.get('eq_best');
+  app.innerHTML=`
+  <header class="hero">
+    <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><rect x="12" y="12" width="40" height="40" rx="2"/><rect x="12" y="12" width="40" height="40" rx="2" transform="rotate(45 32 32)"/><circle cx="32" cy="32" r="7"/></svg>
+    <span class="eyebrow">English Grade XI · ASAS 1</span>
+    <h1>English XI Quest</h1>
+    <p>Tempuh 7 stage dengan 45 soal: listening, vocabulary, reading, grammar, matching, short answer, sampai Final Boss.</p>
+  </header>
+  <div class="card stack" style="margin-top:18px">
+    <label class="f" for="nm">Nama pemain<input id="nm" type="text" maxlength="40" placeholder="Tulis namamu" value="${esc(S.name)}" autocomplete="name"></label>
+    <label class="chk" for="lim"><input type="checkbox" id="lim" ${S.limit?'checked':''}><span><b>Mode ujian listening.</b> Setiap percakapan hanya bisa diputar 2 kali.</span></label>
+    <div class="fb mid" style="margin:0"><b class="v">Waktu 60 menit</b><div style="margin-top:4px">Waktu berjalan otomatis begitu tombol Mulai ditekan dan tidak bisa dihentikan.</div></div>
+    <div class="row"><button class="btn" data-act="start">Mulai</button></div>
+    <p class="note" id="nmmsg" role="alert" style="margin:0;color:var(--bad)"></p>
+    ${best?`<p class="note" style="margin:0">Skor terbaik di perangkat ini: <b>${esc(best)}</b> / 100</p>`:''}
+  </div>
+  <div class="card" style="margin-top:14px"><h3 style="font-size:1.05rem;margin-bottom:10px">Pembagian skor (maksimum 100)</h3>${scoreTable()}</div>
+`;
+}
+function statHTML(){return `<span>Waktu <b class="tm${left()<300000?' warn':''}">${mmss(left())}</b></span><span>Streak <b>${S.streak}</b></span><span>50:50 <b>${S.lifes}</b></span>`}
+function updateStat(){const s=document.querySelector('.bar .stat');if(s)s.innerHTML=statHTML()}
+function map(){
+  stopAudio();cur=null;
+  const answered=Object.keys(S.res).length;
+  app.innerHTML=`
+  <div class="bar"><div class="row"><h2 style="font-size:1.2rem">Peta stage</h2><div class="stat"><span>Waktu <b class="tm${left()<300000?' warn':''}">${mmss(left())}</b></span><span>Dijawab <b>${answered}</b>/45</span></div></div></div>
+  <div class="stages">${STAGES.map((st,i)=>{const d=stageDone(i),a=st.qs.filter(n=>S.res[n]).length;
+    return `<div class="card stage ${d?'done':''}"><div class="num">${i+1}</div><div><h3>${st.name}</h3><div class="meta">${st.sub} · ${a}/${st.qs.length} soal dijawab · ${stageMax(i)} poin</div></div><button class="btn sm" data-act="stage" data-i="${i}" ${d?'disabled':''}>${d?'Selesai':a?'Lanjut':'Mulai'}</button></div>`}).join('')}</div>
+  <details class="card" style="margin-top:16px"><summary>Pembagian skor (maksimum 100)</summary><div style="margin-top:10px">${scoreTable()}</div></details>`;
+}
+function bar(){
+  const st=STAGES[S.stage];
+  return `<div class="bar"><div class="row"><button class="btn alt sm" data-act="map">← Peta</button><div class="stat">${statHTML()}</div></div><div class="prog"><i style="width:${(S.pos)/st.qs.length*100}%"></i></div></div>`;
+}
+function startStage(i){
+  S.stage=i;
+  const first=STAGES[i].qs.findIndex(n=>!S.res[n]);
+  if(first<0){map();return}
+  S.pos=first;renderQ();
+}
+function renderQ(){
+  stopAudio();
+  const st=STAGES[S.stage],n=st.qs[S.pos],q=QS[n];
+  cur={q,done:false,half:false,order:[],picks:[]};
+  let h=bar()+`<div class="qhead"><span class="qn">${n}</span><span class="pts">${st.name} · soal ${S.pos+1}/${st.qs.length} · ${q.max} poin</span></div>`;
+  if(q.l)h+=listenHTML(q.l);
+  if(q.p)h+=passHTML(q.p);
+  if(q.l||q.p)h+='<div class="qdiv">Pertanyaan</div>';
+  if(q.ins)h+=`<p class="ins">${q.ins}</p>`;
+  h+=bodyHTML(q);
+  h+='<div id="fb"></div>';
+  app.innerHTML=h;
+  window.scrollTo({top:0});
+  if(q.l){updatePlays();setPlayUI(false)}
+  if(q.t==='order')renderOrder();
+}
+function listenHTML(id){
+  const sc=SCRIPTS[id];
+  return `<div class="listen" id="lbox"><div class="row" style="gap:12px;flex-wrap:nowrap"><div class="pulse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></div><div><h3>${sc.title} · ${sc.range}</h3><div class="note">Dengarkan percakapan lalu jawab pertanyaan di bawah. Dua pembicara, keduanya ${sc.g==='m'?'laki-laki':'perempuan'}.</div></div></div>
+  <div class="row"><button class="btn" id="pbtn" data-act="play">Putar audio</button><label class="note" for="lrate">Kecepatan</label><select id="lrate"><option value="0.85">0.85×</option><option value="1" selected>1.00× (normal)</option><option value="1.15">1.15×</option></select><span class="note" id="lplays"></span></div>
+  <div class="note" id="lstat" aria-live="polite"></div></div>`;
+}
+function bodyHTML(q){
+  if(q.t==='mc'){
+    const idx=q.o.map((t,i)=>({t,ok:i===q.c}));
+    cur.opts=q.fixed?idx:shuffle(idx);
+    const three=cur.opts.length===3&&q.fixed;
+    return `<p class="q">${q.q}</p><div class="opts ${three?'three':''}" id="opts">${cur.opts.map((o,i)=>`<button class="opt" data-act="pick" data-i="${i}"><span class="ltr">${three&&q.o[0]==='TRUE'?(['T','F','NG'][i]):LET[i]}</span><span>${esc(o.t)}</span></button>`).join('')}</div>
+    ${cur.opts.length>=4?`<div class="row" style="margin-top:12px"><button class="life" id="life" data-act="life" ${S.lifes?'':'disabled'}>50:50 (sisa ${S.lifes})</button></div>`:''}`;
+  }
+  if(q.t==='fill'){
+    return `<div class="items">${q.items.map((it,i)=>{const [a,b]=it.s.split('___');return `<div class="it"><span>${esc(a)}</span><input type="text" id="f${i}" autocomplete="off" aria-label="Jawaban ${i+1}"><span>${esc(b)}</span></div>`}).join('')}</div>${submitBtn()}`;
+  }
+  if(q.t==='table'){
+    let g=0;
+    return `<div class="tblwrap"><table class="tbl"><tr><th>Item</th><th>Amount</th></tr>${q.rows.map(r=>typeof r[1]==='string'?`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`:(g++,`<tr><td>${r[0]}</td><td>(${g}) Rp <input type="text" inputmode="numeric" id="t${g-1}" style="width:9em;display:inline-block" aria-label="Gap ${g}" autocomplete="off"></td></tr>`)).join('')}</table></div>${submitBtn()}`;
+  }
+  if(q.t==='fix'){
+    return `<div class="passage"><p>${q.text}</p></div><div class="items">${q.items.map((it,i)=>`<div class="it"><b>${i+1}.</b><input type="text" id="x${i}" autocomplete="off" aria-label="Koreksi ${i+1}" placeholder="Tulis perbaikannya"></div>`).join('')}</div>${submitBtn()}`;
+  }
+  if(q.t==='order'){
+    return `<div id="ordbox"></div><label class="f" for="w44" style="margin-top:14px">Narrative paragraph (5–6 sentences)<textarea id="w44" placeholder="Tulis paragrafmu di sini…"></textarea></label>${submitBtn()}`;
+  }
+  if(q.t==='boss'){
+    return `<div class="passage"><h3>Fadhil’s Laptop Plan</h3><p>Fadhil's monthly income is Rp2,500,000 (allowance Rp1,800,000 and tutoring Rp700,000). His monthly expenses are: rent Rp900,000, food Rp600,000, transport Rp250,000, phone and internet Rp150,000, and snacks and hobbies Rp350,000. He has already saved Rp600,000. He wants to buy a laptop that costs Rp5,400,000 in twelve months' time.</p></div>
+    <h3 style="font-size:1.05rem;margin-bottom:8px">(a) Calculate how much Fadhil can save each month at the moment, and decide whether he can reach his goal in twelve months. <span class="pts">(5 poin)</span></h3>
+    <div class="items">
+     <div class="it"><span>Total monthly expenses: Rp</span><input type="text" inputmode="numeric" id="b0" autocomplete="off"></div>
+     <div class="it"><span>Savings per month: Rp</span><input type="text" inputmode="numeric" id="b1" autocomplete="off"></div>
+     <div class="it"><span>Total after 12 months, including the Rp600,000 he has now: Rp</span><input type="text" inputmode="numeric" id="b2" autocomplete="off"></div>
+     <div class="it"><span>Shortfall (money still missing): Rp</span><input type="text" inputmode="numeric" id="b3" autocomplete="off"></div>
+     <div class="it"><span>Can he reach the goal with his current habits?</span><select id="b4" style="width:auto"><option value="">Pilih…</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+    </div>
+    <h3 style="font-size:1.05rem;margin:18px 0 8px">(b) Write a plan of 5–6 sentences advising Fadhil what to change. <span class="pts">(5 poin)</span></h3>
+    <p class="ins">Use at least two modals of necessity (one of them negative: don't have to, needn't, or mustn't), one future perfect, and one future perfect continuous.</p>
+    <textarea id="w45" placeholder="Tulis rencanamu di sini…"></textarea>${submitBtn()}`;
+  }
+}
+const submitBtn=()=>`<div class="row" style="margin-top:14px"><button class="btn" id="chk" data-act="check">Kirim jawaban</button></div>`;
+function renderOrder(){
+  const q=cur.q,keys=cur.shuf||(cur.shuf=shuffle(Object.keys(q.ev)));
+  const disabled=cur.done;
+  $('#ordbox').innerHTML=`<p class="note" style="margin:0 0 8px">Ketuk kejadian sesuai urutan waktu, dari yang paling awal.</p>
+  <div class="chips">${keys.map(k=>`<button class="chip ${cur.order.includes(k)?'used':''}" data-act="ord" data-k="${k}" ${cur.order.includes(k)||disabled?'disabled':''}><b>${k}.</b> ${esc(q.ev[k])}</button>`).join('')}</div>
+  <div class="slots">${[0,1,2,3,4].map(i=>`<div class="slot"><b>${i+1}</b><span>${cur.order[i]?esc(cur.order[i]+'. '+q.ev[cur.order[i]]):'<span class="note">kosong</span>'}</span></div>`).join('')}</div>
+  ${disabled?'':'<button class="btn alt sm" data-act="ordreset">Ulangi urutan</button>'}`;
+}
+function record(n,pts,max,ok,detail){
+  S.res[n]={pts,max,detail};
+  if(ok){S.streak++;S.best=Math.max(S.best,S.streak)}else S.streak=0;
+}
+function showFB(ok){
+  const last=S.pos===STAGES[S.stage].qs.length-1;
+  $('#fb').innerHTML=`<div class="fb ${ok?'good':'bad'}"><b class="v">${ok?'Benar!':'Belum tepat'}</b></div><div class="row" style="margin-top:14px"><button class="btn" data-act="next">${last?'Selesaikan stage':'Soal berikutnya'}</button></div>`;
+  updateStat();
+  $('#fb').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function pick(i){
+  if(cur.done)return;cur.done=true;
+  const q=cur.q,o=cur.opts[i],ok=o.ok,pts=ok?(cur.half?q.max/2:q.max):0;
+  document.querySelectorAll('#opts .opt').forEach((b,k)=>{b.disabled=true;if(k===i)b.classList.add(ok?'ok':'no')});
+  const lf=$('#life');if(lf)lf.disabled=true;
+  record(q.n,pts,q.max,ok&&!cur.half,`<p>Jawabanmu: <b>${esc(o.t)}</b></p><p>Jawaban benar: <b>${esc(q.o[q.c])}</b></p><p>${esc(q.exp)}</p>`);
+  showFB(ok);
+}
+function life(){
+  if(cur.done||cur.half||!S.lifes)return;
+  S.lifes--;S.usedLife=true;cur.half=true;
+  const wrong=shuffle(cur.opts.map((o,i)=>({o,i})).filter(x=>!x.o.ok)).slice(0,2);
+  wrong.forEach(x=>{const b=document.querySelectorAll('#opts .opt')[x.i];b.disabled=true;b.classList.add('gone')});
+  const lf=$('#life');lf.disabled=true;lf.textContent='50:50 dipakai';
+  updateStat();
+}
+function lockInputs(){document.querySelectorAll('#app input, #app textarea, #app select').forEach(e=>e.disabled=true);const c=$('#chk');if(c)c.remove()}
+/* grade a typed-answer question; lines are shown only in the final review */
+function gradeGroup(q,get,order){
+  let pts=0;const lines=[];
+  const mine=v=>`<small class="note"> Jawabanmu: ${esc(v||'(kosong)')}</small>`;
+  if(q.t==='fill'){
+    q.items.forEach((it,i)=>{const raw=get('f'+i),ok=it.a.includes(norm(raw));if(ok)pts++;lines.push(`<li><span class="res ${ok?'ok':'no'}">${ok?'✓':'✗'}</span> ${esc(it.s.replace('___','['+it.m+']'))}${mine(raw)}</li>`)});
+  }
+  if(q.t==='table'){
+    q.rows.filter(r=>typeof r[1]!=='string').forEach((r,i)=>{const raw=get('t'+i),ok=num(raw)===r[1];if(ok)pts++;lines.push(`<li><span class="res ${ok?'ok':'no'}">${ok?'✓':'✗'}</span> (${i+1}) ${r[0]}: <b>${rp(r[1])}</b>${mine(raw)}</li>`)});
+    lines.push(`<li>${esc(q.exp)}</li>`);
+  }
+  if(q.t==='fix'){
+    q.items.forEach((it,i)=>{const raw=get('x'+i),v=norm(raw),ok=it.re.test(v)&&!(it.no&&it.no.test(v));if(ok)pts++;lines.push(`<li><span class="res ${ok?'ok':'no'}">${ok?'✓':'✗'}</span> ${i+1}. <b>${esc(it.m)}</b> (${it.r})${mine(raw)}</li>`)});
+  }
+  if(q.t==='order'){
+    const hit=order.filter((k,i)=>k===q.ans[i]).length,op=hit===5?2:hit>=3?1:0;pts+=op;
+    lines.push(`<li><span class="res ${op===2?'ok':'no'}">${op===2?'✓':'✗'}</span> Urutan benar: <b>${q.ans.join(' → ')}</b> (urutanmu: ${order.join(' → ')||'kosong'}; ${op}/2 poin)</li>`);
+    const raw=get('w44'),a=analyze(raw);
+    if(a.words<20)lines.push('<li>Paragraf belum ditulis atau terlalu pendek, jadi bagian menulis bernilai 0.</li>');
+    else [[a.pp>=2,`Past perfect ≥ 2 (ditemukan ${a.pp})`],[a.ppc>=1,`Past perfect continuous ≥ 1 (ditemukan ${a.ppc})`],[a.start>=2,`Adverb sentence starter ≥ 2 (ditemukan ${a.start})`]].forEach(x=>{if(x[0])pts++;lines.push(`<li><span class="res ${x[0]?'ok':'no'}">${x[0]?'✓':'✗'}</span> ${x[1]}</li>`)});
+    if(raw.trim())lines.push(`<li>Tulisanmu: ${esc(raw)}</li>`);
+    lines.push(`<li><b>Contoh paragraf:</b> ${esc(MODEL44)}</li>`);
+  }
+  if(q.t==='boss'){
+    [2250000,250000,3600000,1800000].forEach((e,i)=>{const raw=get('b'+i),ok=num(raw)===e;if(ok)pts++;lines.push(`<li><span class="res ${ok?'ok':'no'}">${ok?'✓':'✗'}</span> ${['Total expenses','Savings per month','Total after 12 months','Shortfall'][i]}: <b>${rp(e)}</b>${mine(raw)}</li>`)});
+    const dec=get('b4')==='no';if(dec)pts++;
+    lines.push(`<li><span class="res ${dec?'ok':'no'}">${dec?'✓':'✗'}</span> Keputusan: <b>No</b>, ia tidak bisa mencapai target. Ia butuh (5.400.000 − 600.000) ÷ 12 = Rp400.000 per bulan.</li>`);
+    const raw=get('w45'),a=analyze(raw);
+    if(a.words<25)lines.push('<li>Rencana (b) belum ditulis atau terlalu pendek, jadi bagian (b) bernilai 0.</li>');
+    else [[a.n>=5&&a.n<=7,`5–6 kalimat (ditemukan ${a.n})`],[a.modals>=2,`Modal of necessity ≥ 2 (ditemukan ${a.modals})`],[a.neg>=1,`Modal negatif ≥ 1 (ditemukan ${a.neg})`],[a.fp>=1,`Future perfect ≥ 1 (ditemukan ${a.fp})`],[a.fpc>=1,`Future perfect continuous ≥ 1 (ditemukan ${a.fpc})`]].forEach(x=>{if(x[0])pts++;lines.push(`<li><span class="res ${x[0]?'ok':'no'}">${x[0]?'✓':'✗'}</span> ${x[1]}</li>`)});
+    if(raw.trim())lines.push(`<li>Tulisanmu: ${esc(raw)}</li>`);
+    lines.push(`<li><b>Contoh jawaban (b):</b> ${esc(MODEL45)}</li>`);
+  }
+  return {pts,lines};
+}
+function alert0(msg){$('#fb').innerHTML=`<div class="fb mid">${msg}</div>`}
+function check(force){
+  if(cur.done)return;const q=cur.q;
+  if(q.t==='order'&&cur.order.length<5&&!force){alert0('Urutkan kelima kejadian dulu.');return}
+  const g=gradeGroup(q,id=>{const e=document.getElementById(id);return e?e.value:''},cur.order);
+  cur.done=true;lockInputs();if(q.t==='order')renderOrder();
+  const full=g.pts===q.max;
+  record(q.n,g.pts,q.max,full,'<ul>'+g.lines.join('')+'</ul>');
+  showFB(full);
+}
+function next(){
+  const st=STAGES[S.stage];
+  if(S.pos<st.qs.length-1){S.pos++;renderQ()}
+  else if(Object.keys(S.res).length===45)result();
+  else stageEnd();
+}
+function stageEnd(){
+  stopAudio();cur=null;
+  const i=S.stage,nx=i<6&&!stageDone(i+1)?i+1:-1;
+  app.innerHTML=`<div class="bar"><div class="row"><h2 style="font-size:1.2rem">Stage ${i+1} selesai</h2><div class="stat">${statHTML()}</div></div></div>
+  <div class="card stack" style="margin-top:18px"><h3>${STAGES[i].name}</h3><p style="margin:0" class="note">Semua soal di stage ini sudah dijawab.</p>
+  <div class="row">${nx>=0?`<button class="btn" data-act="stage" data-i="${nx}">Stage berikutnya</button>`:''}<button class="btn alt" data-act="map">Kembali ke peta</button></div></div>`;
+  window.scrollTo({top:0});
+}
+function reviewItem(n){
+  const q=QS[n],r=S.res[n];let detail;
+  if(r)detail=r.detail;
+  else if(q.t==='mc')detail=`<p><b>Tidak dijawab.</b></p><p>Jawaban benar: <b>${esc(q.o[q.c])}</b></p><p>${esc(q.exp)}</p>`;
+  else detail='<ul>'+gradeGroup(q,()=>'',[]).lines.join('')+'</ul>';
+  const pts=r?r.pts:0,full=pts===q.max;
+  const head=q.t==='mc'?q.q:esc(q.ins);
+  return `<div class="rv"><div class="row"><span class="qn">${n}</span><span class="res ${full?'ok':'no'}">${full?'Benar':pts>0?'Sebagian benar':r?'Belum tepat':'Tidak dijawab'}</span><span class="pts">${fmt(pts)} / ${q.max} poin</span></div><div class="q" style="font-size:1rem;margin:8px 0">${head}</div>${detail}</div>`;
+}
+function result(){
+  stopAudio();clearInterval(tick);cur=null;
+  const tot=Object.values(S.res).reduce((s,r)=>s+r.pts,0);
+  const answered=Object.keys(S.res).length;
+  if(answered>0&&tot>(parseFloat(store.get('eq_best'))||0))store.set('eq_best',fmt(tot));
+  const title=tot>=90?'Master of English':tot>=75?'Pendaki Handal':tot>=60?'Penjelajah Tangguh':'Terus Berlatih';
+  const sp=i=>stagePts(i)/stageMax(i);
+  const B=[];
+  if(sp(0)>=.85)B.push('Pendengar Tajam');if(sp(1)>=.85)B.push('Raja Kosakata');if(sp(2)>=.85)B.push('Detektif Teks');if(sp(3)>=.85)B.push('Grammar Guru');
+  if(S.res[42]&&S.res[42].pts===4)B.push('Kalkulator Hemat');
+  if(S.best>=10)B.push('Streak '+S.best);
+  if(answered===45&&!S.usedLife)B.push('Tanpa Bantuan');
+  app.innerHTML=`<div class="bar"><div class="row"><h2 style="font-size:1.2rem">${S.over?'Waktu habis':'Semua stage selesai'}</h2></div></div>
+  <div class="card stack" style="margin-top:18px"><div><span class="eyebrow">${esc(S.name||'Pemain')}</span><div class="bigscore">${fmt(tot)}<span style="font-size:1.6rem;color:var(--muted)"> / 100</span></div><h3 style="margin-top:6px">${title}</h3><p class="note" style="margin:6px 0 0">${answered} dari 45 soal dijawab.</p></div>
+  ${B.length?`<div class="badges">${B.map(b=>`<span class="badge">${b}</span>`).join('')}</div>`:''}
+  <div class="tblwrap"><table class="tbl"><tr><th>Stage</th><th>Poin</th></tr>${STAGES.map((s,i)=>`<tr><td>${i+1}. ${s.name}</td><td>${fmt(stagePts(i))} / ${stageMax(i)}</td></tr>`).join('')}</table></div>
+  <div class="row"><button class="btn alt" data-act="restart">Main lagi</button></div></div>
+  <h2 style="font-size:1.3rem;margin:26px 0 10px">Pembahasan</h2>
+  <div class="stack">${Object.keys(QS).map(n=>reviewItem(+n)).join('')}</div>
+  <h2 style="font-size:1.3rem;margin:26px 0 10px">Transkrip listening</h2>
+  <div class="stack">${Object.values(SCRIPTS).map(sc=>`<div class="card"><h3 style="font-size:1.05rem;margin-bottom:8px">${sc.title} · ${sc.range}</h3><div class="trans">${sc.lines.map(l=>`<p><b>${esc(sc.spk[l[0]])}:</b> ${esc(l[1])}</p>`).join('')}</div></div>`).join('')}</div>`;
+  window.scrollTo({top:0});
+}
+
+/* ---------- one attempt per name (kept in code only; no note shown to the player) ---------- */
+const nameKey=n=>norm(n);
+const nameId=k=>Array.from(k).map(c=>c.codePointAt(0).toString(36)).join('-').slice(0,190)||'x';
+function localNames(){try{return JSON.parse(store.get('eq_names')||'[]')}catch(e){return []}}
+function addLocalName(k){const a=localNames();if(!a.includes(k)){a.push(k);store.set('eq_names',JSON.stringify(a))}}
+async function dbHandle(){
+  try{
+    if(!(window.claude&&window.claude.use))return null;
+    return await Promise.race([claude.use('db'),new Promise(r=>setTimeout(()=>r(null),3000))]);
+  }catch(e){return null}
+}
+/* returns 'ok' | 'taken' | 'empty'. Checks this browser first, then the shared db when this viewer has one. */
+async function claimName(raw){
+  const k=nameKey(raw);
+  if(!k)return 'empty';
+  if(localNames().includes(k))return 'taken';
+  let ref=null;
+  const db=await dbHandle();
+  if(db){try{ref=db.doc('names/'+nameId(k));const snap=await ref.get();if(snap.exists)return 'taken'}catch(e){ref=null}}
+  addLocalName(k);
+  if(ref){try{await ref.set({t:Date.now()})}catch(e){}}
+  return 'ok';
+}
+async function startFlow(btn){
+  const raw=($('#nm').value||'').trim(),msg=$('#nmmsg');
+  msg.textContent='';
+  if(!raw){msg.textContent='Tulis namamu dulu.';return}
+  btn.disabled=true;
+  const r=await claimName(raw);
+  if(r!=='ok'){msg.textContent='Nama ini tidak dapat digunakan.';btn.disabled=false;return}
+  S.name=raw;S.limit=$('#lim').checked;S.res={};S.lifes=3;S.streak=0;S.best=0;S.usedLife=false;S.plays={};S.over=false;
+  startTimer();map();
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const a=b.dataset.act;
+  if(S.over&&a!=='restart')return;
+  if(a==='start')startFlow(b);
+  else if(a==='map')map();
+  else if(a==='stage')startStage(+b.dataset.i);
+  else if(a==='pick')pick(+b.dataset.i);
+  else if(a==='life')life();
+  else if(a==='check')check();
+  else if(a==='next')next();
+  else if(a==='restart'){S.name='';S.res={};S.lifes=3;S.streak=0;S.best=0;S.usedLife=false;S.plays={};S.over=false;home()}
+  else if(a==='play')togglePlay();
+  else if(a==='ord'){if(cur.done)return;cur.order.push(b.dataset.k);renderOrder()}
+  else if(a==='ordreset'){cur.order=[];renderOrder()}
+});
+window.addEventListener('pagehide',()=>{try{speechSynthesis.cancel()}catch(e){}});
+window.__t={QS,S,STAGES,SCRIPTS,analyze,voiceFor,timeUp};
+home();
+</script>
